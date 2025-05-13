@@ -1,0 +1,15 @@
+language: "ko-KR"
+revies:
+  profile: "assertive"
+  high_level_summary_in_walkthrough: true
+  fail_commit_status: true
+  collapse_walkthrough: true
+  suggested_reviewers: false
+  poem: false
+  disable_cache: true
+  knowledge_base:
+    pull_requests:
+      scope: "local"
+  code_generation:
+    docstrings:
+      language: "ko-KR"

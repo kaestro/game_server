@@ -1,0 +1,23 @@
+# Build artifacts
+
+build/
+*.o
+*.a
+*.so
+MyGameServer
+
+# Editor/OS specific
+
+.vscode/
+*.exe
+*.dll
+*.lib
+*.exp
+*.pdb
+*.out
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.swn
