@@ -20,12 +20,13 @@ public:
 class Server {
 public:
   Server(int port = 8080);
+  ~Server();
   bool start();
   void stop();
 
 private:
   int port_;
-  int main_socket_fd;
+  int main_socket_fd = -1;
 };
 
 #endif // GAMESERVER_SERVER_H

@@ -7,11 +7,15 @@
 #include <sys/socket.h> // For socket, bind, listen, accept
 #include <unistd.h>     // For close(), read()
 
+#define DEFAULT_PORT 8080
+
+const size_t BUFFER_SIZE = 1024;
+
 void EchoClientHandler::handle_client(int client_socket) {
   // limit the size of buffer to 1024 for simplicity
   // close the client socket after handling for simplicity
-  char buffer[1024] = {0};
-  int bytes_read = read(client_socket, buffer, 1024);
+  char buffer[BUFFER_SIZE] = {0};
+  int bytes_read = read(client_socket, buffer, BUFFER_SIZE);
   if (bytes_read < 0) {
     perror("read failed");
     close(client_socket);
@@ -24,7 +28,11 @@ void EchoClientHandler::handle_client(int client_socket) {
   }
 
   std::cout << "수신된 메시지: " << buffer << std::endl;
-  send(client_socket, buffer, bytes_read, 0);
+  if (send(client_socket, buffer, bytes_read, 0) < 0) {
+    perror("send failed");
+    close(client_socket);
+    return;
+  }
   std::cout << "에코 메시지를 전송했습니다." << std::endl;
 
   close(client_socket);
@@ -32,7 +40,14 @@ void EchoClientHandler::handle_client(int client_socket) {
             << std::endl;
 }
 
-Server::Server(int port) : port_(port), main_socket_fd(-1) {}
+Server::Server(int port) : port_(port), main_socket_fd(-1) {
+  if (port <= 0 || port > 65535) {
+    std::cerr << "Invalid port number " << port
+              << " (must be between 0 and 65535). Using default port "
+              << DEFAULT_PORT << "." << std::endl;
+    port_ = DEFAULT_PORT;
+  }
+}
 
 bool Server::start() {
   // IPv4, TCP, auto protocol
@@ -56,7 +71,7 @@ bool Server::start() {
   }
 
   if (listen(main_socket_fd, 3) < 0) {
-    perror("listen");
+    perror("listen failed");
     close(main_socket_fd);
     return false;
   }
@@ -94,3 +109,5 @@ void Server::stop() {
     std::cout << "서버가 종료되었습니다." << std::endl;
   }
 }
+
+Server::~Server() { stop(); }
