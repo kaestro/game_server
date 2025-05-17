@@ -2,10 +2,12 @@
 #include "../include/EchoClientHandler.h"
 
 #include <arpa/inet.h> // For htons, inet_pton
-#include <cstring>     // For strlen, memset (if used elsewhere, perror)
+#include <cerrno>      // For errno
+#include <cstring>     // For strlen, memset, strerror
 #include <iostream>
 #include <netinet/in.h> // For sockaddr_in
-#include <sys/socket.h> // For socket, bind, listen, accept
+#include <sys/socket.h> // For socket, bind, listen, accept, setsockopt
+#include <sys/time.h>   // For struct timeval
 #include <unistd.h>     // For close(), read()
 
 Server::Server(HandlerType handler_type, int port)
@@ -46,8 +48,8 @@ bool Server::start() {
   int opt = 1;
   if (setsockopt(main_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) <
       0) {
-    perror("Server: setsockopt failed");
-    stop();
+    perror("Server: setsockopt SO_REUSEADDR failed");
+    close_socket(main_socket_fd_);
     return false;
   }
 
@@ -61,49 +63,82 @@ bool Server::start() {
 
   if (bind(main_socket_fd_, (struct sockaddr *)&address, sizeof(address)) < 0) {
     perror("Server: bind failed");
-    stop();
+    close_socket(main_socket_fd_);
     return false;
   }
 
   if (listen(main_socket_fd_, 3) < 0) {
     perror("Server: listen failed");
-    stop();
+    close_socket(main_socket_fd_);
     return false;
   }
 
   std::cout << "서버가 포트 " << port_ << "에서 대기 중입니다..." << std::endl;
 
-  int client_socket;
-  socklen_t addrlen = sizeof(address);
-  if ((client_socket = accept(main_socket_fd_, (struct sockaddr *)&address,
-                              &addrlen)) < 0) {
-    perror("Server: accept failed");
-    stop();
-    return false;
+  while (true) {
+    int client_socket;
+    socklen_t addrlen = sizeof(address);
+    if ((client_socket = accept(main_socket_fd_, (struct sockaddr *)&address,
+                                &addrlen)) < 0) {
+      perror("Server: accept failed");
+      continue;
+    }
+
+    std::cout << "클라이언트 (" << client_socket << ")가 연결되었습니다."
+              << std::endl;
+
+    struct timeval tv;
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+
+    if (setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv,
+                   sizeof tv) < 0) {
+      perror("Server: setsockopt(SO_RCVTIMEO) for client_socket failed");
+      close_socket(client_socket);
+      continue;
+    }
+
+    if (setsockopt(client_socket, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv,
+                   sizeof tv) < 0) {
+      perror("Server: setsockopt(SO_SNDTIMEO) for client_socket failed");
+      close_socket(client_socket);
+      continue;
+    }
+
+    const char *connect_success_msg = "Server: Connection successful!\n";
+    if (send(client_socket, connect_success_msg, strlen(connect_success_msg),
+             0) < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        std::cerr << "Server: Send timeout for initial message to client "
+                  << client_socket << std::endl;
+      } else {
+        std::cerr
+            << "Server: failed to send connection success message to client "
+            << client_socket << " with errno " << errno << ": "
+            << strerror(errno) << std::endl;
+      }
+      close_socket(client_socket);
+      continue;
+    }
+
+    client_handler_->handle_client(client_socket);
+    std::cout << "Server: Client (" << client_socket
+              << ") handled, waiting for next connection..." << std::endl;
   }
-
-  std::cout << "클라이언트가 연결되었습니다." << std::endl;
-
-  const char *connect_success_msg = "Server: Connection successful!\n";
-  if (send(client_socket, connect_success_msg, strlen(connect_success_msg), 0) <
-      0) {
-    perror("Server: failed to send connection success message");
-    stop();
-    return false;
-  }
-
-  // 여기서는 단일 클라이언트 처리를 위해 바로 객체를 생성하고 호출합니다.
-  // 다중 클라이언트 처리를 위해서는 이 부분을 스레드 생성 로직으로 변경해야
-  // 합니다. 클라이언트 소켓은 기본 에코 서버에서는 핸들러 내에서 닫힙니다.
-  client_handler_->handle_client(client_socket);
 
   return true;
 }
 
 void Server::stop() {
   if (main_socket_fd_ != -1) {
-    close(main_socket_fd_);
-    main_socket_fd_ = -1;
+    close_socket(main_socket_fd_);
     std::cout << "Server: Listener socket closed. Server stopped." << std::endl;
+  }
+}
+
+void Server::close_socket(int &socket_fd) {
+  if (socket_fd != -1) {
+    close(socket_fd);
+    socket_fd = -1;
   }
 }

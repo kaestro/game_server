@@ -20,6 +20,8 @@ public:
   void stop();
 
 private:
+  void close_socket(int &socket_fd);
+
   int port_;
   int main_socket_fd_ = -1;
   std::unique_ptr<IClientHandler> client_handler_;

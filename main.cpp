@@ -3,11 +3,11 @@
 
 int main() {
   Server game_server(HandlerType::ECHO);
-  if (game_server.start()) {
-    std::cout << "서버 로직이 (단일 클라이언트 처리 후) 완료되었습니다."
-              << std::endl;
+  if (!game_server.start()) {
+    std::cerr << "Server: Server start failed." << std::endl;
   }
-  game_server.stop();
+
+  std::cout << "서버 프로그램의 main 함수가 종료됩니다." << std::endl;
 
   return 0;
 }
