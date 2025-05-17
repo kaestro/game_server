@@ -42,6 +42,15 @@ bool Server::start() {
     return false;
   }
 
+  // 소켓 옵션 설정: 소켓 종료 후 바로 재사용 가능하도록 설정
+  int opt = 1;
+  if (setsockopt(main_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) <
+      0) {
+    perror("Server: setsockopt failed");
+    stop();
+    return false;
+  }
+
   struct sockaddr_in address;
   // sin represents socket internet address
   address.sin_family = AF_INET; // 주소 체계: IPv4
@@ -52,15 +61,13 @@ bool Server::start() {
 
   if (bind(main_socket_fd_, (struct sockaddr *)&address, sizeof(address)) < 0) {
     perror("Server: bind failed");
-    close(main_socket_fd_);
-    main_socket_fd_ = -1;
+    stop();
     return false;
   }
 
   if (listen(main_socket_fd_, 3) < 0) {
     perror("Server: listen failed");
-    close(main_socket_fd_);
-    main_socket_fd_ = -1;
+    stop();
     return false;
   }
 
@@ -71,7 +78,7 @@ bool Server::start() {
   if ((client_socket = accept(main_socket_fd_, (struct sockaddr *)&address,
                               &addrlen)) < 0) {
     perror("Server: accept failed");
-    close(main_socket_fd_);
+    stop();
     return false;
   }
 
@@ -81,6 +88,8 @@ bool Server::start() {
   if (send(client_socket, connect_success_msg, strlen(connect_success_msg), 0) <
       0) {
     perror("Server: failed to send connection success message");
+    stop();
+    return false;
   }
 
   // 여기서는 단일 클라이언트 처리를 위해 바로 객체를 생성하고 호출합니다.
