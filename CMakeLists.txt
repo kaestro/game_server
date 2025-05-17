@@ -10,6 +10,7 @@ set(EXECUTABLE_NAME MyGameServer)
 set(SOURCES
     main.cpp
     src/server.cpp
+    src/EchoClientHandler.cpp
 )
 
 include_directories(include)
