@@ -1,4 +1,5 @@
 #include "../include/Server.h"
+#include "../include/EchoClientHandler.h"
 
 #include <arpa/inet.h> // For htons, inet_pton
 #include <cstring>     // For strlen, memset (if used elsewhere, perror)
@@ -7,52 +8,46 @@
 #include <sys/socket.h> // For socket, bind, listen, accept
 #include <unistd.h>     // For close(), read()
 
-#define DEFAULT_PORT 8080
-
-const size_t BUFFER_SIZE = 1024;
-
-void EchoClientHandler::handle_client(int client_socket) {
-  // limit the size of buffer to 1024 for simplicity
-  // close the client socket after handling for simplicity
-  char buffer[BUFFER_SIZE] = {0};
-  int bytes_read = read(client_socket, buffer, BUFFER_SIZE);
-  if (bytes_read < 0) {
-    perror("read failed");
-    close(client_socket);
-    return;
-  }
-  if (bytes_read == 0) {
-    std::cout << "클라이언트 연결이 종료되었습니다. (핸들러)" << std::endl;
-    close(client_socket);
-    return;
+Server::Server(HandlerType handler_type, int port)
+    : port_(port), main_socket_fd_(-1) {
+  if (port_ <= 0 || port_ > 65535) {
+    std::cerr << "Server Error: Invalid port number " << port_
+              << ". Using default port " << DEFAULT_SERVER_PORT << "."
+              << std::endl;
+    port_ = DEFAULT_SERVER_PORT;
   }
 
-  std::cout << "수신된 메시지: " << buffer << std::endl;
-  if (send(client_socket, buffer, bytes_read, 0) < 0) {
-    perror("send failed");
-    close(client_socket);
-    return;
-  }
-  std::cout << "에코 메시지를 전송했습니다." << std::endl;
-
-  close(client_socket);
-  std::cout << "클라이언트 연결이 종료되었습니다. (핸들러에서 닫음)"
-            << std::endl;
-}
-
-Server::Server(int port) : port_(port), main_socket_fd(-1) {
-  if (port <= 0 || port > 65535) {
-    std::cerr << "Invalid port number " << port
-              << " (must be between 0 and 65535). Using default port "
-              << DEFAULT_PORT << "." << std::endl;
-    port_ = DEFAULT_PORT;
+  if (handler_type != HandlerType::ECHO) {
+    std::cerr << "Server Error: Invalid handler type specified. Only ECHO is "
+              << "supported at the moment." << std::endl;
+    client_handler_ = nullptr;
+  } else {
+    client_handler_ = std::make_unique<EchoClientHandler>();
   }
 }
+
+Server::~Server() { stop(); }
 
 bool Server::start() {
+  if (!client_handler_) {
+    std::cerr
+        << "Server Error: Server was not initialized correctly. Cannot start."
+        << std::endl;
+    return false;
+  }
+
   // IPv4, TCP, auto protocol
-  if ((main_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    perror("socket failed");
+  if ((main_socket_fd_ = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    perror("Server: socket failed");
+    return false;
+  }
+
+  // 소켓 옵션 설정: 소켓 종료 후 바로 재사용 가능하도록 설정
+  int opt = 1;
+  if (setsockopt(main_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) <
+      0) {
+    perror("Server: setsockopt failed");
+    stop();
     return false;
   }
 
@@ -64,15 +59,15 @@ bool Server::start() {
   address.sin_addr.s_addr = INADDR_ANY;
   address.sin_port = htons(port_);
 
-  if (bind(main_socket_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-    perror("bind failed");
-    close(main_socket_fd);
+  if (bind(main_socket_fd_, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    perror("Server: bind failed");
+    stop();
     return false;
   }
 
-  if (listen(main_socket_fd, 3) < 0) {
-    perror("listen failed");
-    close(main_socket_fd);
+  if (listen(main_socket_fd_, 3) < 0) {
+    perror("Server: listen failed");
+    stop();
     return false;
   }
 
@@ -80,34 +75,35 @@ bool Server::start() {
 
   int client_socket;
   socklen_t addrlen = sizeof(address);
-  if ((client_socket =
-           accept(main_socket_fd, (struct sockaddr *)&address, &addrlen)) < 0) {
-    perror("accept");
-    close(main_socket_fd);
+  if ((client_socket = accept(main_socket_fd_, (struct sockaddr *)&address,
+                              &addrlen)) < 0) {
+    perror("Server: accept failed");
+    stop();
     return false;
   }
 
   std::cout << "클라이언트가 연결되었습니다." << std::endl;
 
-  // 클라이언트에게 연결 성공 메시지 전송
-  const char *connect_success_msg = "서버에 연결되었습니다!\n";
-  send(client_socket, connect_success_msg, strlen(connect_success_msg), 0);
+  const char *connect_success_msg = "Server: Connection successful!\n";
+  if (send(client_socket, connect_success_msg, strlen(connect_success_msg), 0) <
+      0) {
+    perror("Server: failed to send connection success message");
+    stop();
+    return false;
+  }
 
   // 여기서는 단일 클라이언트 처리를 위해 바로 객체를 생성하고 호출합니다.
   // 다중 클라이언트 처리를 위해서는 이 부분을 스레드 생성 로직으로 변경해야
   // 합니다. 클라이언트 소켓은 기본 에코 서버에서는 핸들러 내에서 닫힙니다.
-  EchoClientHandler handler;
-  handler.handle_client(client_socket);
+  client_handler_->handle_client(client_socket);
 
   return true;
 }
 
 void Server::stop() {
-  if (main_socket_fd != -1) {
-    close(main_socket_fd);
-    main_socket_fd = -1;
-    std::cout << "서버가 종료되었습니다." << std::endl;
+  if (main_socket_fd_ != -1) {
+    close(main_socket_fd_);
+    main_socket_fd_ = -1;
+    std::cout << "Server: Listener socket closed. Server stopped." << std::endl;
   }
 }
-
-Server::~Server() { stop(); }

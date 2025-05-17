@@ -1,32 +1,28 @@
 #ifndef GAMESERVER_SERVER_H
 #define GAMESERVER_SERVER_H
 
+#include "IClientHandler.h"
 #include <iostream> // For std::cout, perror (used in implementations, but good for consistency)
+#include <memory>
 #include <netinet/in.h> // For sockaddr_in (though used in .cpp, part of socket interface)
 #include <sys/socket.h> // For socket types used in method signatures
 #include <unistd.h> // For close() in potential inline destructors or simple methods
 
-class IClientHandler {
-public:
-  virtual ~IClientHandler() {}
-  virtual void handle_client(int client_socket) = 0;
-};
+enum class HandlerType { ECHO, UNKNOWN };
 
-class EchoClientHandler : public IClientHandler {
-public:
-  void handle_client(int client_socket) override;
-};
+const int DEFAULT_SERVER_PORT = 8080;
 
 class Server {
 public:
-  Server(int port = 8080);
+  Server(HandlerType handler_type, int port = DEFAULT_SERVER_PORT);
   ~Server();
   bool start();
   void stop();
 
 private:
   int port_;
-  int main_socket_fd = -1;
+  int main_socket_fd_ = -1;
+  std::unique_ptr<IClientHandler> client_handler_;
 };
 
 #endif // GAMESERVER_SERVER_H
