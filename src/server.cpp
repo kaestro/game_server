@@ -79,6 +79,7 @@ bool Server::start() {
     if ((client_socket = accept(main_socket_fd_, (struct sockaddr *)&address,
                                 &addrlen)) < 0) {
       perror("Server: accept failed");
+      close_socket(client_socket);
       continue;
     }
 
@@ -88,11 +89,13 @@ bool Server::start() {
     if (send(client_socket, connect_success_msg, strlen(connect_success_msg),
              0) < 0) {
       perror("Server: failed to send connection success message");
+      close_socket(client_socket);
       continue;
     }
 
     client_handler_->handle_client(client_socket);
     std::cout << "클라이언트 처리 완료, 다음 연결 대기 중..." << std::endl;
+    close_socket(client_socket);
   }
 
   return true;
