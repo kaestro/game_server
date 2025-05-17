@@ -2,10 +2,12 @@
 #include "../include/EchoClientHandler.h"
 
 #include <arpa/inet.h> // For htons, inet_pton
-#include <cstring>     // For strlen, memset (if used elsewhere, perror)
+#include <cerrno>      // For errno
+#include <cstring>     // For strlen, memset, strerror
 #include <iostream>
 #include <netinet/in.h> // For sockaddr_in
-#include <sys/socket.h> // For socket, bind, listen, accept
+#include <sys/socket.h> // For socket, bind, listen, accept, setsockopt
+#include <sys/time.h>   // For struct timeval
 #include <unistd.h>     // For close(), read()
 
 Server::Server(HandlerType handler_type, int port)
@@ -46,7 +48,7 @@ bool Server::start() {
   int opt = 1;
   if (setsockopt(main_socket_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) <
       0) {
-    perror("Server: setsockopt failed");
+    perror("Server: setsockopt SO_REUSEADDR failed");
     close_socket(main_socket_fd_);
     return false;
   }
@@ -79,23 +81,49 @@ bool Server::start() {
     if ((client_socket = accept(main_socket_fd_, (struct sockaddr *)&address,
                                 &addrlen)) < 0) {
       perror("Server: accept failed");
+      continue;
+    }
+
+    std::cout << "클라이언트 (" << client_socket << ")가 연결되었습니다."
+              << std::endl;
+
+    struct timeval tv;
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+
+    if (setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv,
+                   sizeof tv) < 0) {
+      perror("Server: setsockopt(SO_RCVTIMEO) for client_socket failed");
       close_socket(client_socket);
       continue;
     }
 
-    std::cout << "클라이언트가 연결되었습니다." << std::endl;
+    if (setsockopt(client_socket, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv,
+                   sizeof tv) < 0) {
+      perror("Server: setsockopt(SO_SNDTIMEO) for client_socket failed");
+      close_socket(client_socket);
+      continue;
+    }
 
     const char *connect_success_msg = "Server: Connection successful!\n";
     if (send(client_socket, connect_success_msg, strlen(connect_success_msg),
              0) < 0) {
-      perror("Server: failed to send connection success message");
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        std::cerr << "Server: Send timeout for initial message to client "
+                  << client_socket << std::endl;
+      } else {
+        std::cerr
+            << "Server: failed to send connection success message to client "
+            << client_socket << " with errno " << errno << ": "
+            << strerror(errno) << std::endl;
+      }
       close_socket(client_socket);
       continue;
     }
 
     client_handler_->handle_client(client_socket);
-    std::cout << "클라이언트 처리 완료, 다음 연결 대기 중..." << std::endl;
-    close_socket(client_socket);
+    std::cout << "Server: Client (" << client_socket
+              << ") handled, waiting for next connection..." << std::endl;
   }
 
   return true;
