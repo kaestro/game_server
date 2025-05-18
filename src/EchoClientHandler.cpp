@@ -172,7 +172,18 @@ void EchoClientHandler::handle_client(int client_socket) {
     return;
   }
 
-  buffer[bytes_read] = '\0';
+  if (bytes_read < BUFFER_SIZE_ECHOHANDLER) {
+    buffer[bytes_read] = '\0';
+  } else {
+    buffer[BUFFER_SIZE_ECHOHANDLER - 1] = '\0';
+    std::cout << "EchoClientHandler: Received message is too long on socket "
+              << client_socket << " (bytes_read: " << bytes_read
+              << ", BUFFER_SIZE_ECHOHANDLER: " << BUFFER_SIZE_ECHOHANDLER << ")"
+              << std::endl;
+    close(client_socket);
+    return;
+  }
+
   std::cout << "EchoClientHandler: Received from (" << client_socket
             << "): " << buffer << std::endl;
 
