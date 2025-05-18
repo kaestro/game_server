@@ -1,6 +1,7 @@
 #include "../include/Server.h"
 #include "../include/AsyncEchoClientHandler.h"
 #include "../include/EchoClientHandler.h"
+#include "../include/MultiThreadedAsyncEchoClientHandler.h"
 
 #include <iostream>
 
@@ -19,6 +20,10 @@ Server::Server(HandlerType handler_type, int port)
   } else if (handler_type_ == HandlerType::ASYNC_ECHO) {
     client_handler_ = std::make_unique<AsyncEchoClientHandler>();
     std::cout << "Server configured for ASYNC_ECHO (asynchronous) mode."
+              << std::endl;
+  } else if (handler_type_ == HandlerType::MULTI_THREADED_ASYNC_ECHO) {
+    client_handler_ = std::make_unique<MultiThreadedAsyncEchoClientHandler>();
+    std::cout << "Server configured for MULTI_THREADED_ASYNC_ECHO mode."
               << std::endl;
   } else {
     std::cerr << "Server Error: Unknown handler type specified. Exiting."

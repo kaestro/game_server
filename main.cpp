@@ -14,6 +14,9 @@ int main(int argc, char *argv[]) {
     } else if (mode_arg == "sync") {
       mode = HandlerType::ECHO;
       mode_str = "ECHO (synchronous)";
+    } else if (mode_arg == "mtasync") {
+      mode = HandlerType::MULTI_THREADED_ASYNC_ECHO;
+      mode_str = "MULTI_THREADED_ASYNC_ECHO (multithreaded asynchronous)";
     } else {
       std::cout << "알 수 없는 인자입니다: " << mode_arg << ". 기본 모드("
                 << mode_str << ")로 시작합니다." << std::endl;
