@@ -11,6 +11,7 @@
 enum class HandlerType {
   ECHO,
   ASYNC_ECHO,
+  MULTI_THREADED_ASYNC_ECHO,
 };
 
 const int DEFAULT_SERVER_PORT = 8080;

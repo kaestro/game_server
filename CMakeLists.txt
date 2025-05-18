@@ -12,6 +12,7 @@ set(SOURCES
     src/server.cpp
     src/EchoClientHandler.cpp
     src/AsyncEchoClientHandler.cpp
+    src/MultiThreadedAsyncEchoClientHandler.cpp
 )
 
 include_directories(include)
