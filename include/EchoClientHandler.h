@@ -16,8 +16,10 @@ public:
 
   bool initialize_server_socket(int &server_socket_fd, int port) override;
   void run_server_loop(int server_socket_fd) override;
-  void handle_client(int client_socket) override;
   void shutdown() override;
+
+private:
+  void handle_client(int client_socket);
 };
 
 #endif // ECHO_CLIENT_HANDLER_H

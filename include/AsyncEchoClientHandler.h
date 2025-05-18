@@ -26,11 +26,6 @@ public:
   bool initialize_server_socket(int &server_socket_fd, int port) override;
   void run_server_loop(int server_socket_fd) override;
 
-  // This handle_client is part of the interface but not actively used
-  // by this handler's epoll loop in the traditional blocking sense.
-  // The epoll loop in run_server_loop manages client I/O directly.
-  void handle_client(int client_socket) override;
-
   void shutdown() override;
 
 private:

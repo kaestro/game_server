@@ -271,21 +271,6 @@ void AsyncEchoClientHandler::handle_client_write(int client_socket) {
   }
 }
 
-// This method is part of IClientHandler interface but not actively used for I/O
-// in this async model.
-void AsyncEchoClientHandler::handle_client(int client_socket) {
-  std::cout << "AsyncEchoClientHandler::handle_client called for socket: "
-            << client_socket
-            << ". This is unexpected in the epoll model as run_server_loop "
-               "manages I/O directly."
-            << std::endl;
-  // If this were to be used, it should be non-blocking or for one-time setup.
-  // For this design, all I/O is driven by epoll events in run_server_loop.
-  // Perhaps close the socket if it reaches here unexpectedly through a wrong
-  // configuration. remove_client_from_epoll(client_socket); // Example: treat
-  // as error
-}
-
 void AsyncEchoClientHandler::shutdown() {
   std::cout << "AsyncEchoClientHandler: Shutdown called." << std::endl;
   if (epoll_fd_ != -1) {
