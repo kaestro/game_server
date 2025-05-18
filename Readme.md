@@ -41,7 +41,8 @@
 5.  **서버 실행**:
     `build` 디렉토리 내에서 다음 명령으로 서버를 실행할 수 있습니다.
     ```bash
-    ./MyGameServer
+    ./MyGameServer sync -- 동기 에코서버 실행(sync 생략 가능)
+    ./MyGameServer async -- 비동기 에코서버 실행
     ```
 
 ---
@@ -61,6 +62,11 @@
         *   CMake 설치.
         *   서버 및 클라이언트 컴파일을 위한 기본적인 `CMakeLists.txt` 작성.
         *   CMake를 사용한 프로젝트 빌드 (위에 설명된 빌드 방법 참조).
+    *   **`epoll`을 이용한 비동기 다중 클라이언트 처리:**
+        *   `IClientHandler` 인터페이스를 도입하여 동기식 (`EchoClientHandler`) 및 비동기식 (`AsyncEchoClientHandler`) 클라이언트 처리 로직 분리.
+        *   `AsyncEchoClientHandler`는 `epoll`을 사용하여 단일 스레드에서 논블로킹 I/O 기반으로 다수의 클라이언트 연결을 효율적으로 관리.
+        *   서버 실행 시 동기 또는 비동기 모드를 선택할 수 있도록 `main.cpp` 수정.
+        *   이를 통해 높은 동시성과 확장성을 가진 서버 아키텍처 기초 마련.
     *   **`std::thread`를 이용한 다중 클라이언트 처리 (다음 단계):**
         *   각 클라이언트에 대해 새 스레드를 생성하여 여러 클라이언트를 동시에 처리하도록 서버 수정.
         *   "클라이언트당 스레드(thread-per-client)" 모델 및 장단점 논의.

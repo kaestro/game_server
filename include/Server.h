@@ -8,7 +8,10 @@
 #include <sys/socket.h> // For socket types used in method signatures
 #include <unistd.h> // For close() in potential inline destructors or simple methods
 
-enum class HandlerType { ECHO, UNKNOWN };
+enum class HandlerType {
+  ECHO,
+  ASYNC_ECHO,
+};
 
 const int DEFAULT_SERVER_PORT = 8080;
 
@@ -20,8 +23,9 @@ public:
   void stop();
 
 private:
-  void close_socket(int &socket_fd);
+  void close_fd(int &socket_fd);
 
+  HandlerType handler_type_;
   int port_;
   int main_socket_fd_ = -1;
   std::unique_ptr<IClientHandler> client_handler_;
