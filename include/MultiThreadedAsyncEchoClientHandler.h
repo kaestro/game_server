@@ -11,6 +11,7 @@
 #include <map>                // For client_states_
 #include <mutex>              // For std::mutex
 #include <queue>              // For task queue
+#include <shared_mutex>       // For std::shared_mutex
 #include <sys/epoll.h>        // For epoll_fd_
 #include <thread>             // For std::thread
 #include <unistd.h>           // For close
@@ -34,7 +35,8 @@ const int DEFAULT_THREAD_POOL_SIZE = 4;
 
 class MultiThreadedAsyncEchoClientHandler : public IClientHandler {
 public:
-  MultiThreadedAsyncEchoClientHandler(int num_threads);
+  MultiThreadedAsyncEchoClientHandler(
+      int num_threads = DEFAULT_THREAD_POOL_SIZE);
   ~MultiThreadedAsyncEchoClientHandler() override;
 
   MultiThreadedAsyncEchoClientHandler(
@@ -58,9 +60,13 @@ private:
   void handle_new_connection(int server_socket_fd);
 
   // Task to be executed by worker threads
-  void process_client_event(int client_socket, uint32_t events);
-  void handle_client_read(int client_socket);
-  void handle_client_write(int client_socket);
+  void
+  process_client_event(std::shared_ptr<MultiThreadedClientState> client_state,
+                       int client_socket_fd, uint32_t events);
+  void handle_client_read(std::shared_ptr<MultiThreadedClientState> state_ptr,
+                          int client_socket_fd);
+  void handle_client_write(std::shared_ptr<MultiThreadedClientState> state_ptr,
+                           int client_socket_fd);
 
   // Thread pool
   void worker_thread_function();
@@ -69,9 +75,10 @@ private:
   std::mutex queue_mutex_;
   std::condition_variable condition_;
   bool stop_threads_ = false;
+  std::shared_mutex client_states_mutex_;
 
   int epoll_fd_ = -1;
-  std::map<int, std::unique_ptr<MultiThreadedClientState>> client_states_;
+  std::map<int, std::shared_ptr<MultiThreadedClientState>> client_states_;
   int num_threads_ = DEFAULT_THREAD_POOL_SIZE;
 };
 
