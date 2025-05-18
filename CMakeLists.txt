@@ -11,6 +11,7 @@ set(SOURCES
     main.cpp
     src/server.cpp
     src/EchoClientHandler.cpp
+    src/AsyncEchoClientHandler.cpp
 )
 
 include_directories(include)
