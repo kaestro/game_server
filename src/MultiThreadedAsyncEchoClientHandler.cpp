@@ -332,35 +332,39 @@ void MultiThreadedAsyncEchoClientHandler::add_client_to_epoll(
 
 void MultiThreadedAsyncEchoClientHandler::remove_client_from_epoll(
     int client_socket, bool log_disconnection) {
-  if (epoll_fd_ != -1 &&
-      epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_socket, nullptr) < 0) {
-    if (errno != ENOENT &&
-        epoll_fd_ != -1) { // ENOENT means fd already removed, which is fine
-      perror("MultiThreadedAsyncEchoClientHandler: epoll_ctl_del client_socket "
-             "failed");
-    }
-  }
-
-  close(client_socket);
-
-  bool erased = false;
+  bool actually_removed_from_map = false;
   {
     std::unique_lock<std::shared_mutex> lock(client_states_mutex_);
-    if (client_states_.erase(client_socket) > 0) {
-      erased = true;
+    if (client_states_.count(client_socket)) {
+      client_states_.erase(client_socket);
+      actually_removed_from_map = true;
     }
   }
 
-  if (log_disconnection && erased) {
-    std::cout << "MultiThreadedAsyncEchoClientHandler: Client ("
-              << client_socket
-              << ") removed from epoll and map, and disconnected." << std::endl;
-  } else if (log_disconnection) {
-    std::cout
-        << "MultiThreadedAsyncEchoClientHandler: Client (" << client_socket
-        << ") disconnect requested (socket closed, epoll DEL attempted), but "
-           "not found in active client map (possibly already removed)."
-        << std::endl;
+  if (actually_removed_from_map) {
+    if (epoll_fd_ != -1) {
+      if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_socket, nullptr) < 0) {
+        if (errno != ENOENT) {
+          perror("MultiThreadedAsyncEchoClientHandler: epoll_ctl_del "
+                 "client_socket failed");
+        }
+      }
+    }
+    close(client_socket);
+
+    if (log_disconnection) {
+      std::cout << "MultiThreadedAsyncEchoClientHandler: Client ("
+                << client_socket
+                << ") removed from map, epoll, and disconnected." << std::endl;
+    }
+  } else {
+    if (log_disconnection) {
+      std::cout << "MultiThreadedAsyncEchoClientHandler: Client ("
+                << client_socket
+                << ") disconnect requested, but not found in active client map "
+                   "(likely already removed)."
+                << std::endl;
+    }
   }
 }
 
