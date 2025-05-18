@@ -14,6 +14,7 @@ EchoClientHandler::EchoClientHandler() {
 }
 
 EchoClientHandler::~EchoClientHandler() {
+  shutdown();
   std::cout << "EchoClientHandler destroyed." << std::endl;
 }
 

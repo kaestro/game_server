@@ -8,10 +8,7 @@ AsyncEchoClientHandler::AsyncEchoClientHandler() : epoll_fd_(-1) {
 
 AsyncEchoClientHandler::~AsyncEchoClientHandler() {
   std::cout << "AsyncEchoClientHandler destroying..." << std::endl;
-  if (epoll_fd_ != -1) {
-    close(epoll_fd_);
-    epoll_fd_ = -1;
-  }
+  shutdown();
   std::cout << "AsyncEchoClientHandler destroyed." << std::endl;
 }
 
@@ -108,8 +105,12 @@ void AsyncEchoClientHandler::run_server_loop(int server_socket_fd) {
         if (client_states_.count(current_fd) == 0) {
           std::cerr << "AsyncEchoClientHandler: Event on unknown client FD "
                     << current_fd << std::endl;
-          epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, current_fd, nullptr);
-          close(current_fd);
+          if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, current_fd, nullptr) < 0) {
+            perror("AsyncEchoClientHandler: epoll_ctl_del failed");
+          }
+          if (close(current_fd) < 0) {
+            perror("AsyncEchoClientHandler: close failed");
+          }
           continue;
         }
         if (current_events & EPOLLIN) {
@@ -148,7 +149,10 @@ void AsyncEchoClientHandler::add_client_to_epoll(int client_socket) {
     if (sent_bytes < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         ev.events = EPOLLIN | EPOLLOUT;
-        epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, client_socket, &ev);
+        if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, client_socket, &ev) < 0) {
+          perror("AsyncEchoClientHandler: epoll_ctl_mod for EPOLLIN|EPOLLOUT "
+                 "failed after send greeting");
+        }
       } else {
         perror("AsyncEchoClientHandler: send greeting failed");
         remove_client_from_epoll(client_socket);
@@ -157,7 +161,10 @@ void AsyncEchoClientHandler::add_client_to_epoll(int client_socket) {
       state.write_buffer_.erase(state.write_buffer_.begin(),
                                 state.write_buffer_.begin() + sent_bytes);
       ev.events = EPOLLIN | EPOLLOUT;
-      epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, client_socket, &ev);
+      if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, client_socket, &ev) < 0) {
+        perror("AsyncEchoClientHandler: epoll_ctl_mod for EPOLLIN|EPOLLOUT "
+               "failed after send greeting");
+      }
     } else {
       state.write_buffer_.clear();
     }
@@ -271,7 +278,11 @@ void AsyncEchoClientHandler::handle_client_write(int client_socket) {
     struct epoll_event ev;
     ev.events = EPOLLIN;
     ev.data.fd = client_socket;
-    epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, client_socket, &ev);
+    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, client_socket, &ev) < 0) {
+      perror("AsyncEchoClientHandler: epoll_ctl_mod for EPOLLIN failed after "
+             "write");
+      remove_client_from_epoll(client_socket);
+    }
   }
 }
 
