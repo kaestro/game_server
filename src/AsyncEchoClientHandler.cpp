@@ -239,7 +239,11 @@ void AsyncEchoClientHandler::handle_client_write(int client_socket) {
     struct epoll_event ev;
     ev.events = EPOLLIN;
     ev.data.fd = client_socket;
-    epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, client_socket, &ev);
+    if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, client_socket, &ev) < 0) {
+      perror("AsyncEchoClientHandler: epoll_ctl_mod for EPOLLIN failed after "
+             "write");
+      remove_client_from_epoll(client_socket);
+    }
     return;
   }
 

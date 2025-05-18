@@ -23,6 +23,11 @@ public:
   AsyncEchoClientHandler();
   ~AsyncEchoClientHandler() override;
 
+  AsyncEchoClientHandler(const AsyncEchoClientHandler &) = delete;
+  AsyncEchoClientHandler &operator=(const AsyncEchoClientHandler &) = delete;
+  AsyncEchoClientHandler(AsyncEchoClientHandler &&) = delete;
+  AsyncEchoClientHandler &operator=(AsyncEchoClientHandler &&) = delete;
+
   bool initialize_server_socket(int &server_socket_fd, int port) override;
   void run_server_loop(int server_socket_fd) override;
 
