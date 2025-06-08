@@ -15,6 +15,23 @@
 1.  **CMake 설치**:
     운영체제에 맞는 CMake 설치 방법을 따르십시오. (예: `sudo apt install cmake` on Debian/Ubuntu)
 
+## 🚀 간편한 빌드 방법 (권장)
+
+빌드 스크립트를 사용하면 한 번에 빌드할 수 있습니다:
+
+```bash
+cd server
+./build.sh
+```
+
+이 스크립트는 다음을 자동으로 수행합니다:
+- 기존 빌드 디렉토리 정리 (선택사항)
+- CMake 설정
+- 컴파일
+- 빌드 결과 안내
+
+## 📋 수동 빌드 방법
+
 2.  **저장소 클론**:
     ```bash
     git clone https://github.com/kaestro/game_server.git
@@ -23,26 +40,28 @@
     ```
 
 3.  **빌드 디렉토리 생성 및 CMake 실행**:
-    프로젝트 루트 디렉토리에서 다음 명령을 실행합니다.
+    server 디렉토리에서 다음 명령을 실행합니다.
     ```bash
+    cd server
     mkdir build
     cd build
     cmake ..
     ```
-    이 명령은 `build` 디렉토리를 생성하고, 해당 디렉토리로 이동한 후 상위 디렉토리의 `CMakeLists.txt` 파일을 사용하여 빌드 환경을 구성합니다.
+    이 명령은 server 디렉토리 내에 `build` 디렉토리를 생성하고, 해당 디렉토리로 이동한 후 상위 디렉토리의 `CMakeLists.txt` 파일을 사용하여 빌드 환경을 구성합니다.
 
 4.  **컴파일**:
-    `build` 디렉토리 내에서 다음 명령을 실행하여 프로젝트를 컴파일합니다.
+    `server/build` 디렉토리 내에서 다음 명령을 실행하여 프로젝트를 컴파일합니다.
     ```bash
     make
     ```
-    컴파일이 성공하면 `build` 디렉토리에 `MyGameServer` (또는 CMakeLists.txt에서 지정한 실행 파일 이름) 실행 파일이 생성됩니다.
+    컴파일이 성공하면 `server/build` 디렉토리에 `MyGameServer` (또는 CMakeLists.txt에서 지정한 실행 파일 이름) 실행 파일이 생성됩니다.
 
 5.  **서버 실행**:
-    `build` 디렉토리 내에서 다음 명령으로 서버를 실행할 수 있습니다.
+    `server/build` 디렉토리 내에서 다음 명령으로 서버를 실행할 수 있습니다.
     ```bash
-    ./MyGameServer sync -- 동기 에코서버 실행(sync 생략 가능)
-    ./MyGameServer async -- 비동기 에코서버 실행
+    ./MyGameServer sync     # 동기 에코서버 실행(sync 생략 가능)
+    ./MyGameServer async    # 비동기 에코서버 실행
+    ./MyGameServer mtasync  # 멀티스레드 비동기 에코서버 실행
     ```
 
 ---
@@ -152,6 +171,52 @@
         *   메모리 풀 및 커스텀 할당자.
         *   Reliable UDP (RUDP).
     *   **결과물:** 더 견고하고 유지보수하기 쉬운 코드, 그리고 게임 서버 개발 심화 학습을 위한 명확한 로드맵.
+
+---
+
+## 🔧 트러블슈팅
+
+### CMake 캐시 오류
+
+프로젝트 구조가 변경되었거나 빌드 오류가 발생하는 경우:
+
+```bash
+cd server
+rm -rf build          # 기존 빌드 디렉토리 삭제
+./build.sh            # 처음부터 다시 빌드
+```
+
+또는 수동으로:
+
+```bash
+cd server
+rm -rf build
+mkdir build
+cd build
+cmake ..
+make
+```
+
+### 빌드 의존성 문제
+
+Ubuntu/Debian에서 필요한 패키지들:
+
+```bash
+sudo apt update
+sudo apt install build-essential cmake g++
+```
+
+### 포트 사용 중 오류
+
+다른 프로세스가 포트 8080을 사용하고 있는 경우:
+
+```bash
+# 포트 사용 프로세스 확인
+sudo lsof -i :8080
+
+# 프로세스 종료 (PID 확인 후)
+kill -9 <PID>
+```
 
 ---
 
